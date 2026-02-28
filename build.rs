@@ -7,6 +7,7 @@ fn main() {
         .canonicalize()
         .expect("cannot canonicalize path");
 
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let lwext4_lib = &format!("lwext4-{arch}");
     {
@@ -19,8 +20,13 @@ fn main() {
             .arg(format!("ARCH={arch}"))
             .arg(format!(
                 "ULIBC={}",
-                if cfg!(feature = "std") { "OFF" } else { "ON" }
+                if env::var("CARGO_FEATURE_STD").is_ok() {
+                    "OFF"
+                } else {
+                    "ON"
+                }
             ))
+            .arg(format!("OUT_DIR={}", out_dir.display()))
             .status()
             .expect("failed to execute process: make lwext4");
         assert!(status.success());
@@ -36,19 +42,16 @@ fn main() {
         let sysroot = sysroot.trim_end();
         let sysroot_inc = &format!("-I{sysroot}/include/");
 
-        generates_bindings_to_rust(sysroot_inc);
+        generates_bindings_to_rust(sysroot_inc, &out_dir);
     }
 
     println!("cargo:rustc-link-lib=static={lwext4_lib}");
-    println!(
-        "cargo:rustc-link-search=native={}",
-        c_path.to_str().unwrap()
-    );
+    println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rerun-if-changed=c/wrapper.h");
     println!("cargo:rerun-if-changed={}/src", c_path.to_str().unwrap());
 }
 
-fn generates_bindings_to_rust(mpath: &str) {
+fn generates_bindings_to_rust(mpath: &str, out_dir: &Path) {
     let target = env::var("TARGET").unwrap();
     if target.ends_with("-softfloat") {
         // Clang does not recognize the `-softfloat` suffix
@@ -64,7 +67,10 @@ fn generates_bindings_to_rust(mpath: &str) {
         .clang_arg(mpath)
         //.clang_arg("-I../../ulib/axlibc/include")
         .clang_arg("-I./c/lwext4/include")
-        .clang_arg("-I./c/lwext4/build_musl-generic/include/")
+        .clang_arg(format!(
+            "-I{}/build_musl-generic/include/",
+            out_dir.display()
+        ))
         .layout_tests(false)
         // Tell cargo to invalidate the built crate whenever any of the included header files changed.
         .parse_callbacks(Box::new(CustomCargoCallbacks))
