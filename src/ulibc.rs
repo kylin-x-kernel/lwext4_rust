@@ -4,13 +4,12 @@ mod uprint {
     #[cfg(feature = "print")]
     #[linkage = "weak"]
     #[unsafe(no_mangle)]
-    unsafe extern "C" fn printf(str: *const c_char, mut args: ...) -> c_int {
+    unsafe extern "C" fn printf(str: *const c_char, args: ...) -> c_int {
         // extern "C" { pub fn printf(arg1: *const c_char, ...) -> c_int; }
         use printf_compat::{format, output};
 
         let mut s = alloc::string::String::new();
-        let bytes_written =
-            unsafe { format(str as _, args.as_va_list(), output::fmt_write(&mut s)) };
+        let bytes_written = unsafe { format(str as _, args, output::fmt_write(&mut s)) };
         //println!("{}", s);
         info!("{}", s);
 

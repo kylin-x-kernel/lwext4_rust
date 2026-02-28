@@ -17,7 +17,7 @@ std = []
 
 [dependencies]
 log = "0.4"
-printf-compat = { version = "0.2", default-features = false, optional = true }
+printf-compat = { version = "0.3", default-features = false, optional = true }
 
 [build-dependencies]
 bindgen = "0.72"
